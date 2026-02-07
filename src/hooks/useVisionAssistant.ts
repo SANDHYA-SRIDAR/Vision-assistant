@@ -1,82 +1,95 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useVoiceFeedback } from '@/components/AudioFeedback';
+
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 export function useVisionAssistant() {
+  const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [description, setDescription] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const { speak, stop } = useVoiceFeedback();
+  const recognitionRef = useRef<any>(null);
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+  }, []);
+
+  const speak = (text: string) => {
+    window.speechSynthesis.cancel(); 
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.volume = 0.8;
+    
+    // When the voice finishes, we tell the mic to wake up
+    utterance.onend = () => {
+      console.log("Voice finished. Mic is now alert.");
+      if (recognitionRef.current) {
+        try { recognitionRef.current.start(); } catch(e) {}
+      }
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  };
 
   const analyzeImage = useCallback(async (imageData: string) => {
     setIsProcessing(true);
-    setError(null);
-    stop(); // Stop any ongoing speech
-
-    // Voice feedback for user
-    speak('Analyzing your surroundings');
-
+    speak("Scanning surroundings."); 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('analyze-scene', {
+      const { data, error } = await supabase.functions.invoke('analyze-scene', {
         body: { imageData },
       });
-
-      if (fnError) {
-        throw new Error(fnError.message || 'Failed to analyze image');
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      const resultText = data?.description || 'Unable to describe the scene';
+      if (error) throw error;
+      const resultText = data?.description || "I couldn't identify anything.";
       setDescription(resultText);
-
-      // Automatically speak the result
-      setTimeout(() => {
-        speak(resultText);
-        setIsSpeaking(true);
-      }, 300);
+      speak(resultText); 
     } catch (err) {
-      console.error('Vision analysis error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze image';
-      setError(errorMessage);
-      speak('Sorry, I could not analyze the image. Please try again.');
+      speak("Analysis failed.");
     } finally {
       setIsProcessing(false);
     }
-  }, [speak, stop]);
-
-  const toggleSpeech = useCallback(() => {
-    if (isSpeaking) {
-      stop();
-      setIsSpeaking(false);
-    } else if (description) {
-      speak(description);
-      setIsSpeaking(true);
-    }
-  }, [isSpeaking, description, speak, stop]);
-
-  const clearResult = useCallback(() => {
-    setDescription(null);
-    setError(null);
-    stop();
-    setIsSpeaking(false);
-  }, [stop]);
-
-  const handleSpeechEnd = useCallback(() => {
-    setIsSpeaking(false);
   }, []);
 
-  return {
-    isProcessing,
-    description,
-    error,
-    isSpeaking,
-    analyzeImage,
-    toggleSpeech,
-    clearResult,
-    handleSpeechEnd,
-  };
+  const startAssistant = useCallback((onScanReady: () => void) => {
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      speak("Assistant active.");
+    };
+    
+    recognition.onresult = (event: any) => {
+      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      console.log("Heard:", text);
+      
+      // STOP Logic
+      if (text.includes("stop") || text.includes("quiet") || text.includes("hush")) {
+        stopSpeaking();
+      } 
+      
+      // SCAN AGAIN Logic (Flexible detection)
+      if (text.includes("scan again") || text.includes("scan") || text.includes("again")) {
+        // Prevent triggering while already processing
+        if (!isProcessing) {
+          onScanReady();
+        }
+      }
+    };
+
+    // The "Anti-Glitch" Heartbeat
+    recognition.onend = () => {
+      if (isListening) {
+        console.log("Mic timed out, restarting listener...");
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isListening, isProcessing, stopSpeaking]);
+
+  return { isListening, isProcessing, description, startAssistant, analyzeImage, stopSpeaking };
 }
