@@ -4,77 +4,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Vision Assistant - Accessibility-First Design System
-   High contrast, large touch targets, voice-first experience */
-
-/* Vision Assistant - Accessibility-First Design System
-   High contrast, large touch targets, voice-first experience */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* =========================================================
+   Vision Assistant – LIGHT GLASS + ACCESSIBILITY SYSTEM
+   White glass, black text, VI-safe contrast
+   ========================================================= */
 
 @layer base {
   :root {
-    /* Dark theme by default for high contrast and reduced eye strain */
-    --background: 220 20% 8%;
-    --foreground: 0 0% 98%;
+    /* -------- Background -------- */
+    --app-bg: 210 20% 96%;          /* soft off-white */
+    --foreground: 220 20% 10%;      /* near-black text */
 
-    --card: 220 18% 12%;
-    --card-foreground: 0 0% 98%;
+    /* -------- Glass Surface -------- */
+    --glass-bg: 0 0% 100% / 0.65;
+    --glass-border: 220 15% 40% / 0.25;
 
-    --popover: 220 18% 12%;
-    --popover-foreground: 0 0% 98%;
+    /* -------- Accent (neutral blue-gray) -------- */
+    --accent: 215 40% 35%;
+    --accent-soft: 215 40% 60%;
 
-    /* Teal/Cyan primary - excellent visibility and accessibility */
-    --primary: 175 85% 45%;
-    --primary-foreground: 220 20% 8%;
-    --primary-glow: 175 85% 55%;
+    /* -------- Status -------- */
+    --warning: 40 100% 50%;
+    --success: 145 60% 40%;
 
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 0 0% 95%;
-
-    --muted: 220 12% 20%;
-    --muted-foreground: 220 10% 65%;
-
-    --accent: 175 70% 40%;
-    --accent-foreground: 220 20% 8%;
-
-    /* Warm coral for alerts/status */
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* Success green */
-    --success: 145 65% 45%;
-    --success-foreground: 220 20% 8%;
-
-    --border: 220 15% 22%;
-    --input: 220 15% 18%;
-    --ring: 175 85% 45%;
-
-    --radius: 1rem;
-
-    /* Accessibility-specific tokens */
-    --focus-ring-width: 4px;
-    --touch-target-min: 56px;
-    --scan-button-size: 120px;
-    
-    /* Pulse animation colors */
-    --pulse-color: 175 85% 45%;
-    --pulse-glow: 175 100% 60%;
-
-    --sidebar-background: 220 18% 10%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 175 85% 45%;
-    --sidebar-primary-foreground: 220 20% 8%;
-    --sidebar-accent: 220 15% 18%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 220 15% 22%;
-    --sidebar-ring: 175 85% 45%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
+    --radius: 1.75rem;
   }
 
   html {
@@ -82,134 +35,104 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
-    -webkit-tap-highlight-color: transparent;
+    background: hsl(var(--app-bg));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* High contrast focus states for accessibility */
   :focus-visible {
-    @apply outline-none ring-4 ring-primary ring-offset-2 ring-offset-background;
+    outline: none;
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0.35);
   }
 }
+
+/* =========================================================
+   GLASS COMPONENTS
+   ========================================================= */
 
 @layer components {
-  /* Large, accessible scan button */
-  .scan-button {
-    @apply relative flex items-center justify-center rounded-full 
-           bg-gradient-to-br from-primary to-accent
-           text-primary-foreground font-bold text-xl
-           transition-all duration-300 ease-out
-           active:scale-95;
-    width: var(--scan-button-size);
-    height: var(--scan-button-size);
-    box-shadow: 
-      0 0 40px hsl(var(--primary) / 0.4),
-      0 8px 32px hsl(var(--background) / 0.6);
+  /* Main glass container */
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid hsl(var(--glass-border));
+    border-radius: var(--radius);
+    box-shadow:
+      0 20px 40px rgba(0, 0, 0, 0.08),
+      inset 0 0 0.5px rgba(255, 255, 255, 0.6);
   }
 
-  .scan-button:hover {
-    box-shadow: 
-      0 0 60px hsl(var(--primary) / 0.6),
-      0 12px 40px hsl(var(--background) / 0.8);
+  /* Liquid edge glow */
+  .glass-liquid {
+    position: relative;
   }
 
-  .scan-button-pulse {
-    @apply absolute inset-0 rounded-full;
-    background: hsl(var(--primary) / 0.3);
-    animation: pulse-ring 2s ease-out infinite;
+  .glass-liquid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.35),
+      transparent 65%
+    );
+    pointer-events: none;
   }
 
-  @keyframes pulse-ring {
-    0% {
-      transform: scale(1);
-      opacity: 0.6;
-    }
-    100% {
-      transform: scale(1.5);
-      opacity: 0;
-    }
+  /* Top status bar */
+  .top-bar {
+    @apply glass glass-liquid px-6 py-3 flex justify-between items-center;
   }
 
-  /* Listening state animation */
-  .listening-indicator {
-    @apply flex items-center justify-center gap-1;
+  .status-text {
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
 
-  .listening-bar {
-    @apply w-1 bg-primary rounded-full;
-    animation: sound-wave 1s ease-in-out infinite;
+  /* Date / time block */
+  .time-card {
+    @apply glass glass-liquid px-4 py-2 text-right;
   }
 
-  .listening-bar:nth-child(1) { animation-delay: 0s; }
-  .listening-bar:nth-child(2) { animation-delay: 0.15s; }
-  .listening-bar:nth-child(3) { animation-delay: 0.3s; }
-  .listening-bar:nth-child(4) { animation-delay: 0.45s; }
-  .listening-bar:nth-child(5) { animation-delay: 0.6s; }
-
-  @keyframes sound-wave {
-    0%, 100% { height: 8px; }
-    50% { height: 24px; }
+  .time-day {
+    font-size: 0.8rem;
+    opacity: 0.7;
   }
 
-  /* Camera viewfinder overlay */
-  .viewfinder-frame {
-    @apply absolute pointer-events-none;
-    inset: 10%;
-    border: 3px solid hsl(var(--primary) / 0.6);
-    border-radius: 1.5rem;
-    box-shadow: 
-      inset 0 0 60px hsl(var(--background) / 0.3),
-      0 0 30px hsl(var(--primary) / 0.2);
+  .time-clock {
+    font-size: 1.1rem;
+    font-weight: 600;
   }
 
-  .viewfinder-corner {
-    @apply absolute w-8 h-8 border-primary;
-    border-width: 4px;
+  /* Camera container */
+  .camera-frame {
+    @apply glass glass-liquid relative overflow-hidden;
   }
 
-  .viewfinder-corner-tl { @apply top-0 left-0 border-r-0 border-b-0 rounded-tl-xl; }
-  .viewfinder-corner-tr { @apply top-0 right-0 border-l-0 border-b-0 rounded-tr-xl; }
-  .viewfinder-corner-bl { @apply bottom-0 left-0 border-r-0 border-t-0 rounded-bl-xl; }
-  .viewfinder-corner-br { @apply bottom-0 right-0 border-l-0 border-t-0 rounded-br-xl; }
-
-  /* Status card styling */
-  .status-card {
-    @apply bg-card/90 backdrop-blur-xl rounded-2xl p-5 
-           border border-border/50 shadow-2xl;
+  /* Speech output */
+  .speech-panel {
+    @apply glass glass-liquid px-6 py-8;
   }
 
-  /* Accessible touch targets */
-  .touch-target {
-    @apply min-h-[56px] min-w-[56px] flex items-center justify-center;
+  .speech-text {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    text-align: center;
   }
 }
 
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+
 @layer utilities {
-  /* Screen reader only - visually hidden but accessible */
   .sr-only {
-    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
     clip: rect(0, 0, 0, 0);
-  }
-
-  /* High contrast text */
-  .text-high-contrast {
-    @apply text-foreground font-semibold;
-    text-shadow: 0 1px 2px hsl(var(--background) / 0.5);
-  }
-
-  /* Gradient text for branding */
-  .text-gradient {
-    @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent;
-    background-size: 200% auto;
-  }
-
-  /* Safe area padding for mobile */
-  .safe-area-bottom {
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  }
-
-  .safe-area-top {
-    padding-top: max(1rem, env(safe-area-inset-top));
   }
 }

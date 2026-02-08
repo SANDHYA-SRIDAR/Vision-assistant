@@ -1,95 +1,172 @@
-import { useState, useCallback, useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useVoiceFeedback } from '@/components/AudioFeedback';
 
-const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+type Mode = 'IDLE' | 'WAIT_SCAN';
 
 export function useVisionAssistant() {
-  const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [description, setDescription] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
 
-  const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel();
-  }, []);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const modeRef = useRef<Mode>('IDLE');
 
-  const speak = (text: string) => {
-    window.speechSynthesis.cancel(); 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.volume = 0.8;
-    
-    // When the voice finishes, we tell the mic to wake up
-    utterance.onend = () => {
-      console.log("Voice finished. Mic is now alert.");
-      if (recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch(e) {}
-      }
-    };
-    
-    window.speechSynthesis.speak(utterance);
+  const { speak } = useVoiceFeedback();
+
+  /* ---------------- helpers ---------------- */
+
+  const wait = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms));
+
+  const speakSlow = (text: string) => {
+    speak(text, { rate: 0.6, pitch: 1, volume: 1 });
   };
 
-  const analyzeImage = useCallback(async (imageData: string) => {
-    setIsProcessing(true);
-    speak("Scanning surroundings."); 
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-scene', {
-        body: { imageData },
-      });
-      if (error) throw error;
-      const resultText = data?.description || "I couldn't identify anything.";
-      setDescription(resultText);
-      speak(resultText); 
-    } catch (err) {
-      speak("Analysis failed.");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+  const stopListening = () => {
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+  };
 
-  const startAssistant = useCallback((onScanReady: () => void) => {
-    if (!SpeechRecognition) return;
+  const listenOnce = (onText: (text: string) => void) => {
+    const SR =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    stopListening();
+
+    const recognition = new SR();
+    recognition.continuous = false;
     recognition.lang = 'en-US';
-    recognition.interimResults = true;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-      speak("Assistant active.");
-    };
-    
-    recognition.onresult = (event: any) => {
-      const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-      console.log("Heard:", text);
-      
-      // STOP Logic
-      if (text.includes("stop") || text.includes("quiet") || text.includes("hush")) {
-        stopSpeaking();
-      } 
-      
-      // SCAN AGAIN Logic (Flexible detection)
-      if (text.includes("scan again") || text.includes("scan") || text.includes("again")) {
-        // Prevent triggering while already processing
-        if (!isProcessing) {
-          onScanReady();
-        }
-      }
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript.trim().toLowerCase();
+      onText(transcript);
     };
 
-    // The "Anti-Glitch" Heartbeat
-    recognition.onend = () => {
-      if (isListening) {
-        console.log("Mic timed out, restarting listener...");
-        try { recognition.start(); } catch(e) {}
-      }
-    };
-
-    recognitionRef.current = recognition;
     recognition.start();
-  }, [isListening, isProcessing, stopSpeaking]);
+    recognitionRef.current = recognition;
+  };
 
-  return { isListening, isProcessing, description, startAssistant, analyzeImage, stopSpeaking };
+  const extractScanCommand = (text: string) => {
+    if (/\brescan\b/.test(text)) return 'rescan';
+    if (/\bscan\b/.test(text)) return 'scan';
+    return null;
+  };
+
+  /* ---------------- INTRO ---------------- */
+
+  const speakIntro = async () => {
+    stopListening();
+
+    const now = new Date();
+    const day = now.getDate();
+    const month = now.toLocaleDateString(undefined, { month: 'long' });
+    const weekday = now.toLocaleDateString(undefined, { weekday: 'long' });
+
+    let hours = now.getHours();
+    const minutes = now.getMinutes();
+    const isPM = hours >= 12;
+    hours = hours % 12 || 12;
+
+    // 🔒 Year spoken digit-by-digit (bulletproof)
+    speakSlow(`Date is ${day} of ${month}.`);
+    await wait(2800);
+
+    speakSlow(`Year two thousand.`);
+    await wait(1800);
+
+    speakSlow(`Twenty six.`);
+    await wait(1800);
+
+    speakSlow(`Day ${weekday}.`);
+    await wait(2200);
+
+    speakSlow(
+      `Time is ${hours} ${
+        minutes ? minutes.toString() : "o'clock"
+      } ${isPM ? 'P E M' : 'A E M'}.`
+    );
+    await wait(3200);
+
+    speakSlow('Say scan to proceed.');
+    await wait(1800);
+    speakSlow('Say rescan to scan again.');
+
+    // 🔑 WAIT UNTIL ALL SPEECH IS DONE
+    await wait(2500);
+
+    modeRef.current = 'WAIT_SCAN';
+    waitForScan();
+  };
+
+  /* ---------------- WAIT FOR SCAN ---------------- */
+
+  const waitForScan = () => {
+    listenOnce((text) => {
+      if (modeRef.current !== 'WAIT_SCAN') return;
+
+      const cmd = extractScanCommand(text);
+      if (cmd) {
+        setIsProcessing(true);
+        speak('Analyzing surroundings.');
+        triggerScan();
+      } else {
+        waitForScan(); // keep waiting
+      }
+    });
+  };
+
+  /* ---------------- SCAN TRIGGER ---------------- */
+
+  let triggerScan = () => {};
+
+  const startAssistant = (onScan: () => void) => {
+    triggerScan = onScan;
+
+    listenOnce(() => {
+      if (modeRef.current === 'IDLE') {
+        speakIntro();
+      }
+    });
+  };
+
+  /* ---------------- IMAGE ANALYSIS ---------------- */
+
+  const analyzeImage = useCallback(
+    async (imageData: string) => {
+      stopListening();
+
+      try {
+        const { data } = await supabase.functions.invoke(
+          'analyze-scene',
+          { body: { imageData } }
+        );
+
+        const result =
+          data?.description ||
+          'I could not clearly understand the surroundings.';
+
+        setDescription(result);
+        speakSlow(result);
+
+      } catch {
+        speakSlow('Sorry, I could not analyze the surroundings.');
+      } finally {
+        setIsProcessing(false);
+
+        // 🔁 READY FOR NEXT SCAN
+        await wait(2500);
+        modeRef.current = 'WAIT_SCAN';
+        waitForScan();
+      }
+    },
+    []
+  );
+
+  return {
+    isProcessing,
+    description,
+    startAssistant,
+    analyzeImage,
+  };
 }
