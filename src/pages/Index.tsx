@@ -19,34 +19,102 @@ const Index = () => {
     }
   }, [analyzeImage]);
 
-  return (
-    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#000', color: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {!isListening ? (
-        <button onClick={() => startAssistant(handleScanTrigger)} style={{ width: '100%', height: '100%', border: 'none', background: '#0a0a0a', color: '#4ade80', fontSize: '2rem', cursor: 'pointer' }}>
-          TAP TO ACTIVATE
-        </button>
-      ) : (
-        <>
-          <div style={{ padding: '15px', textAlign: 'center', borderBottom: '1px solid #333', background: '#000' }}>
-            <span style={{ color: isProcessing ? '#fbbf24' : '#4ade80', fontWeight: 'bold' }}>
-              {isProcessing ? "ANALYZING..." : "SAY 'SCAN AGAIN' OR 'STOP'"}
-            </span>
-          </div>
-          
-          <div style={{ flex: '1', position: 'relative', margin: '12px', borderRadius: '24px', overflow: 'hidden', border: '1px solid #222' }}>
-             <CameraView onCapture={analyzeImage} isProcessing={isProcessing} />
-          </div>
+  const now = new Date();
+  const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-          <div 
-            onClick={stopSpeaking}
-            style={{ flex: '0 0 32%', padding: '25px', background: 'linear-gradient(180deg, #111 0%, #000 100%)', overflowY: 'auto', borderTop: '1px solid #333' }}
+  return (
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      background: '#f3f4f6',
+      color: '#111',
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: 'system-ui, sans-serif'
+    }}>
+
+      {/* ---------- TOP STATUS BAR ---------- */}
+      <div style={{
+        background: '#e5e7eb',
+        padding: '16px 20px',
+        borderBottom: '1px solid #d1d5db',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: '1.1rem',
+        fontWeight: 500
+      }}>
+        <span>Listening for commands</span>
+
+        <div style={{
+          background: '#fff',
+          padding: '10px 16px',
+          borderRadius: '20px',
+          textAlign: 'center',
+          minWidth: '90px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+        }}>
+          <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{day}</div>
+          <div style={{ fontWeight: 'bold' }}>{time}</div>
+        </div>
+      </div>
+
+      {/* ---------- CAMERA PANEL ---------- */}
+      <div style={{
+        flex: 1,
+        margin: '18px',
+        borderRadius: '26px',
+        overflow: 'hidden',
+        background: '#2b2b2b',
+        position: 'relative'
+      }}>
+        <CameraView onCapture={analyzeImage} isProcessing={isProcessing} />
+
+        {!isListening && (
+          <div
+            onClick={() => startAssistant(handleScanTrigger)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#9ca3af',
+              fontSize: '1.5rem',
+              background: 'rgba(0,0,0,0.6)',
+              cursor: 'pointer'
+            }}
           >
-            <p style={{ fontSize: '1.25rem', textAlign: 'center', color: '#d1d5db', lineHeight: '1.6' }}>
-              {description || "Ready for your command. Say 'Scan' to begin."}
-            </p>
+            Tap anywhere to activate assistant
           </div>
-        </>
-      )}
+        )}
+      </div>
+
+      {/* ---------- BOTTOM SPEECH PANEL ---------- */}
+      <div
+        onClick={stopSpeaking}
+        style={{
+          padding: '28px',
+          background: 'linear-gradient(180deg, #f9fafb 0%, #e5e7eb 100%)',
+          borderTop: '1px solid #d1d5db',
+          minHeight: '150px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <p style={{
+          fontSize: '1.3rem',
+          lineHeight: 1.6,
+          textAlign: 'center',
+          color: '#374151',
+          maxWidth: '900px'
+        }}>
+          {description || "Vision Assistant is active. Say 'Scan' when ready."}
+        </p>
+      </div>
+
     </div>
   );
 };
