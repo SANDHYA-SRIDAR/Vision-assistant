@@ -1,116 +1,107 @@
-import { useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { CameraView } from '@/components/CameraView';
-import { ScanButton } from '@/components/ScanButton';
-import { StatusDisplay } from '@/components/StatusDisplay';
-import { AudioFeedback } from '@/components/AudioFeedback';
+import { useCallback, useEffect, useState } from 'react';
 import { useVisionAssistant } from '@/hooks/useVisionAssistant';
-import { Eye, Info } from 'lucide-react';
+import { CameraView } from '@/components/CameraView';
 
 const Index = () => {
   const {
+    isListening,
     isProcessing,
     description,
-    isSpeaking,
+    startAssistant,
     analyzeImage,
-    toggleSpeech,
-    clearResult,
-    handleSpeechEnd,
+    stopSpeaking,
   } = useVisionAssistant();
 
-  const captureRef = useRef<(() => void) | null>(null);
+  /* ===============================
+     REAL-TIME DATE / DAY / TIME
+     =============================== */
+  const [dateTime, setDateTime] = useState(new Date());
 
-  const handleCapture = useCallback(
-    (imageData: string) => {
-      analyzeImage(imageData);
-    },
-    [analyzeImage]
-  );
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDateTime(new Date());
+    }, 60_000); // update every minute
 
-  const handleScanClick = useCallback(() => {
-    // Trigger capture from CameraView
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDay = dateTime.toLocaleDateString(undefined, {
+    weekday: 'long',
+  });
+
+  const formattedDate = dateTime.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const formattedTime = dateTime.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  /* ===============================
+     IMAGE SCAN HANDLER
+     =============================== */
+  const handleScanTrigger = useCallback(() => {
     const video = document.querySelector('video');
-    const canvas = document.createElement('canvas');
-    if (video && video.videoWidth > 0) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg', 0.85);
-        handleCapture(imageData);
-      }
-    }
-  }, [handleCapture]);
+    if (!video) return;
 
-  const handleRescan = useCallback(() => {
-    clearResult();
-  }, [clearResult]);
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+    analyzeImage(canvas.toDataURL('image/jpeg', 0.85));
+  }, [analyzeImage]);
+
+  /* ===============================
+     AUTO START ASSISTANT
+     =============================== */
+  useEffect(() => {
+    if (!isListening) {
+      startAssistant(handleScanTrigger);
+    }
+  }, [isListening, startAssistant, handleScanTrigger]);
 
   return (
-    <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
-      {/* Header */}
-      <header className="safe-area-top px-4 py-3 flex items-center justify-between border-b border-border/50 bg-card/80 backdrop-blur-lg z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Eye className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Vision Assistant</h1>
-            <p className="text-xs text-muted-foreground">AI-powered scene description</p>
-          </div>
+    <div className="w-screen h-screen flex flex-col overflow-hidden bg-[hsl(var(--app-bg))]">
+      
+      {/* ===============================
+          TOP BAR (STATUS + TIME)
+         =============================== */}
+      <div className="top-bar m-4">
+        <span className="status-text text-black">
+          {isProcessing ? 'Analyzing surroundings' : 'Listening for commands'}
+        </span>
+
+        <div className="time-card ml-4">
+          <div className="time-day">{formattedDay}</div>
+          <div className="time-clock">{formattedTime}</div>
         </div>
-        <button
-          className="touch-target rounded-xl hover:bg-secondary transition-colors"
-          aria-label="Information and help"
-        >
-          <Info className="w-5 h-5 text-muted-foreground" />
-        </button>
-      </header>
+      </div>
 
-      {/* Camera View */}
-      <CameraView onCapture={handleCapture} isProcessing={isProcessing} />
+      {/* ===============================
+          CAMERA / MAIN VIEW
+         =============================== */}
+      <div className="camera-frame flex-1 mx-4 my-2">
+        <CameraView onCapture={analyzeImage} isProcessing={isProcessing} />
+      </div>
 
-      {/* Bottom Controls */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="safe-area-bottom px-4 py-6 bg-gradient-to-t from-background via-background to-transparent"
+      {/* ===============================
+          SPEECH / DESCRIPTION PANEL
+         =============================== */}
+      <div
+        onClick={stopSpeaking}
+        className="speech-panel mx-4 mb-4"
+        aria-live="polite"
       >
-        <div className="max-w-lg mx-auto space-y-4">
-          {/* Status Display */}
-          <StatusDisplay
-            description={description}
-            isProcessing={isProcessing}
-            isSpeaking={isSpeaking}
-            onToggleSpeech={toggleSpeech}
-            onRescan={handleRescan}
-          />
-
-          {/* Scan Button - Centered */}
-          {!description && (
-            <div className="flex justify-center pt-2">
-              <ScanButton
-                onClick={handleScanClick}
-                isProcessing={isProcessing}
-              />
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Audio Feedback Component */}
-      <AudioFeedback
-        text={null}
-        onSpeechEnd={handleSpeechEnd}
-      />
-
-      {/* Screen Reader Instructions */}
-      <div className="sr-only" role="region" aria-label="Usage instructions">
-        <p>
-          This is a vision assistant app for visually impaired users. Point your phone's camera
-          at your surroundings and tap the Scan button to hear a description of what's in front
-          of you. You can also tap anywhere on the camera view to capture and analyze.
+        <p className="speech-text text-black">
+          {description ||
+            "Vision Assistant is active. Say 'Scan' when ready."}
         </p>
       </div>
     </div>
