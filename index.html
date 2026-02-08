@@ -1,50 +1,34 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vision Assistant</title>
+</head>
+<body style="font-family: Arial; text-align: center; margin-top: 50px;">
+  <h2>Vision Assistant 🎙️</h2>
 
-    <!-- Responsive & mobile-friendly -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <button onclick="start()">Speak</button>
+  <p id="out"></p>
 
-    <!-- App Title -->
-    <title>Vision Assistant</title>
+  <script>
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    <!-- App Description -->
-    <meta
-      name="description"
-      content="Vision Assistant is an AI-powered mobile-friendly application that provides real-time scene descriptions and audio feedback to assist visually impaired users."
-    />
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
 
-    <!-- Author / Project Info -->
-    <meta name="author" content="Vision Assistant Project Team" />
+    recognition.onresult = function (event) {
+      const text = event.results[0][0].transcript;
+      document.getElementById("out").innerText = text;
 
-    <!-- Accessibility -->
-    <meta name="theme-color" content="#0f172a" />
+      const speech = new SpeechSynthesisUtterance(
+        "You said " + text
+      );
+      speechSynthesis.speak(speech);
+    };
 
-    <!-- Open Graph (for sharing) -->
-    <meta property="og:title" content="Vision Assistant" />
-    <meta
-      property="og:description"
-      content="AI-powered real-time visual assistance with voice feedback for visually impaired individuals."
-    />
-    <meta property="og:type" content="website" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Vision Assistant" />
-    <meta
-      name="twitter:description"
-      content="Real-time visual scene understanding and audio guidance for the visually impaired."
-    />
-
-  </head>
-
-  <body>
-    <!-- React Root -->
-    <div id="root"></div>
-
-    <!-- App Entry -->
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    function start() {
+      recognition.start();
+    }
+  </script>
+</body>
 </html>
-

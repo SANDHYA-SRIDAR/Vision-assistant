@@ -7,11 +7,6 @@
 /* Vision Assistant - Accessibility-First Design System
    High contrast, large touch targets, voice-first experience */
 
-/* Vision Assistant - Accessibility-First Design System
-   High contrast, large touch targets, voice-first experience */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 @layer base {
   :root {
     /* Dark theme by default for high contrast and reduced eye strain */
@@ -56,7 +51,7 @@
     --focus-ring-width: 4px;
     --touch-target-min: 56px;
     --scan-button-size: 120px;
-    
+
     /* Pulse animation colors */
     --pulse-color: 175 85% 45%;
     --pulse-glow: 175 100% 60%;
@@ -70,9 +65,7 @@
     --sidebar-border: 220 15% 22%;
     --sidebar-ring: 175 85% 45%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
@@ -121,14 +114,8 @@
   }
 
   @keyframes pulse-ring {
-    0% {
-      transform: scale(1);
-      opacity: 0.6;
-    }
-    100% {
-      transform: scale(1.5);
-      opacity: 0;
-    }
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
   }
 
   /* Listening state animation */
@@ -163,48 +150,32 @@
       0 0 30px hsl(var(--primary) / 0.2);
   }
 
-  .viewfinder-corner {
-    @apply absolute w-8 h-8 border-primary;
-    border-width: 4px;
-  }
-
-  .viewfinder-corner-tl { @apply top-0 left-0 border-r-0 border-b-0 rounded-tl-xl; }
-  .viewfinder-corner-tr { @apply top-0 right-0 border-l-0 border-b-0 rounded-tr-xl; }
-  .viewfinder-corner-bl { @apply bottom-0 left-0 border-r-0 border-t-0 rounded-bl-xl; }
-  .viewfinder-corner-br { @apply bottom-0 right-0 border-l-0 border-t-0 rounded-br-xl; }
-
-  /* Status card styling */
   .status-card {
     @apply bg-card/90 backdrop-blur-xl rounded-2xl p-5 
            border border-border/50 shadow-2xl;
   }
 
-  /* Accessible touch targets */
   .touch-target {
     @apply min-h-[56px] min-w-[56px] flex items-center justify-center;
   }
 }
 
 @layer utilities {
-  /* Screen reader only - visually hidden but accessible */
   .sr-only {
     @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
     clip: rect(0, 0, 0, 0);
   }
 
-  /* High contrast text */
   .text-high-contrast {
     @apply text-foreground font-semibold;
     text-shadow: 0 1px 2px hsl(var(--background) / 0.5);
   }
 
-  /* Gradient text for branding */
   .text-gradient {
     @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent;
     background-size: 200% auto;
   }
 
-  /* Safe area padding for mobile */
   .safe-area-bottom {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }

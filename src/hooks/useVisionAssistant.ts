@@ -1,82 +1,37 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useVoiceFeedback } from '@/components/AudioFeedback';
+
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 export function useVisionAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [description, setDescription] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const { speak, stop } = useVoiceFeedback();
+  const recognitionRef = useRef<any>(null);
 
-  const analyzeImage = useCallback(async (imageData: string) => {
-    setIsProcessing(true);
-    setError(null);
-    stop(); // Stop any ongoing speech
-
-    // Voice feedback for user
-    speak('Analyzing your surroundings');
-
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('analyze-scene', {
-        body: { imageData },
-      });
-
-      if (fnError) {
-        throw new Error(fnError.message || 'Failed to analyze image');
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      const resultText = data?.description || 'Unable to describe the scene';
-      setDescription(resultText);
-
-      // Automatically speak the result
-      setTimeout(() => {
-        speak(resultText);
-        setIsSpeaking(true);
-      }, 300);
-    } catch (err) {
-      console.error('Vision analysis error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze image';
-      setError(errorMessage);
-      speak('Sorry, I could not analyze the image. Please try again.');
-    } finally {
-      setIsProcessing(false);
+  const startAssistant = useCallback((onScanReady: () => void) => {
+    window.alert("HOOK ACTIVE: Starting Microphone...");
+    if (!SpeechRecognition) {
+      window.alert("ERROR: Speech recognition not supported.");
+      return;
     }
-  }, [speak, stop]);
 
-  const toggleSpeech = useCallback(() => {
-    if (isSpeaking) {
-      stop();
-      setIsSpeaking(false);
-    } else if (description) {
-      speak(description);
-      setIsSpeaking(true);
-    }
-  }, [isSpeaking, description, speak, stop]);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.onstart = () => {
+      setIsListening(true);
+      window.alert("MICROPHONE IS ON: Say 'SCAN'");
+    };
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+      if (transcript.includes("scan") || transcript.includes("speak")) onScanReady();
+    };
+    recognition.onerror = (event: any) => window.alert("MIC ERROR: " + event.error);
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [speak]);
 
-  const clearResult = useCallback(() => {
-    setDescription(null);
-    setError(null);
-    stop();
-    setIsSpeaking(false);
-  }, [stop]);
-
-  const handleSpeechEnd = useCallback(() => {
-    setIsSpeaking(false);
-  }, []);
-
-  return {
-    isProcessing,
-    description,
-    error,
-    isSpeaking,
-    analyzeImage,
-    toggleSpeech,
-    clearResult,
-    handleSpeechEnd,
-  };
+  return { isProcessing, description, isListening, startAssistant, analyzeImage: () => {} };
 }
